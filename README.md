@@ -1,6 +1,6 @@
 # elliptic-bitcoin-aml
 Repository for the cryptocurrency AML detection project
-#Files:
+Please execute the files in the following order:
 1.- requirements.txt 
 2.- download_data.py - simple script to download the Elliptic dataset from Kaggle. Make sure to have Kaggle API installed and configured
 3.- exploratory_data_analysis.py - This script performs exploratory data analysis (EDA) on the Elliptic Bitcoin dataset. It includes loading the dataset, checking for missing values, visualizing distributions, and analyzing correlations.
