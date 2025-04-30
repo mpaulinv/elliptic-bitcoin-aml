@@ -179,3 +179,16 @@ train_set_clean.to_csv(train_set_clean_output_path, index=False)
 test_set.to_csv(test_set_output_path, index=False)
 
 
+### Comments: Some of the premade features are highly correlated with each other. These could be removed from the model. 
+### Regarding the target variable, we can see that the dataset is highly imbalanced. 
+### As per the graph features we would expect people engaging in illicit activities would tend to form closely connented groups,
+### at the edges of the graph. We would so expect them to show related transactions with many nodes during layering and 
+### with many transactions with the same node during integration.
+
+## In the scatterplots we see. Ego size: inversely related to target
+## Ego density: if there is a relationship is not linear. Maybe middle values are more relevant here than low or high values 
+## Avg neigbor: slight positive 
+## number of nodes, edges and degree slightly negative
+## density is positive while clustering negative 
+## Degree centrality is negative and intuitively so is pagerank. 
+
