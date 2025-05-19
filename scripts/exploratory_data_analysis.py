@@ -3,6 +3,7 @@
 # It includes loading the dataset, checking for missing values, visualizing distributions, and analyzing correlations.
 
 #load libraries
+import os
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,12 +11,22 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 
+# Define base paths dynamically
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
+data_dir = os.path.join(base_dir, "data", "elliptic_bitcoin_dataset")
+output_dir = os.path.join(base_dir, "outputs")
+
+# File path for saving the PDF of the graphics 
+eda_pdf_path = os.path.join(output_dir, "eda_plots.pdf")
+
+# Ensure the output directory exists
+os.makedirs(output_dir, exist_ok=True)
+
 #load data
 # File paths
-base_path = r'C:\Users\mario\elliptic-bitcoin-aml\data\elliptic_bitcoin_dataset'
-classes_file = f'{base_path}/elliptic_txs_classes.csv'
-features_file = f'{base_path}/elliptic_txs_features.csv'
-edgelist_file = f'{base_path}/elliptic_txs_edgelist.csv'
+classes_file = os.path.join(data_dir, "elliptic_txs_classes.csv")
+features_file = os.path.join(data_dir, "elliptic_txs_features.csv")
+edgelist_file = os.path.join(data_dir, "elliptic_txs_edgelist.csv")
 
 # Load the data
 classes_df = pd.read_csv(classes_file)
@@ -74,9 +85,9 @@ plt.suptitle("Feature Distributions")
 plt.show()
 
 # File paths for saving CSVs
-missing_values_csv = r"C:\Users\mario\elliptic-bitcoin-aml\outputs\missing_values_features.csv"
-summary_statistics_csv = r"C:\Users\mario\elliptic-bitcoin-aml\outputs\summary_statistics_features.csv"
-feature_histograms_pdf = r"C:\Users\mario\elliptic-bitcoin-aml\outputs\feature_histograms.pdf"
+missing_values_csv = os.path.join(output_dir, "missing_values_features.csv")
+summary_statistics_csv = os.path.join(output_dir, "summary_statistics_features.csv")
+feature_histograms_pdf = os.path.join(output_dir, "feature_histograms.pdf")
 
 # Save Missing Values to a CSV
 missing_values = features_df.isnull().sum()
@@ -121,8 +132,6 @@ print(f"Feature histograms saved to: {feature_histograms_pdf}")
 # Question, are the features ortogonal? We can create a correlation matrix to check this.
 
 # Compute the correlation matrix
-
-# Compute the correlation matrix
 correlation_matrix = features_df.iloc[:, 1:].corr()  # Exclude the first column if it's a transaction ID
 
 # Plot the heatmap
@@ -132,7 +141,8 @@ plt.title("Correlation Matrix of Features")
 plt.show()
 
 # Save the correlation matrix to a CSV
-correlation_matrix_csv = r"C:\Users\mario\elliptic-bitcoin-aml\outputs\correlation_matrix_features.csv"
+correlation_matrix_csv = os.path.join(output_dir, "correlation_matrix_features.csv")
+#correlation_matrix = features_df.iloc[:, 1:].corr()  # Exclude the first column if it's a transaction ID
 correlation_matrix.to_csv(correlation_matrix_csv)
 print(f"Correlation matrix saved to: {correlation_matrix_csv}")
 
@@ -155,26 +165,34 @@ print("Highly Correlated Pairs (|correlation| > 0.80):")
 print(high_correlation_pairs)
 
 # Save the results to a CSV for further inspection
-high_correlation_csv = r"C:\Users\mario\elliptic-bitcoin-aml\outputs\high_correlation_pairs.csv"
+high_correlation_csv = os.path.join(output_dir, "high_correlation_pairs.csv")
 high_correlation_pairs.to_csv(high_correlation_csv, index=False)
 print(f"Highly correlated pairs saved to: {high_correlation_csv}")
 
 ### Analysis of the data across time steps
-
-# Count the number of transactions per time step
-transactions_per_timestep = features_df['timestep'].value_counts().sort_index()
-
-# Plot the number of transactions per time step
-plt.figure(figsize=(10, 6))
-sns.barplot(x=transactions_per_timestep.index, y=transactions_per_timestep.values, color='skyblue')
-plt.title("Number of Transactions per Time Step")
-plt.xlabel("Time Step")
-plt.ylabel("Number of Transactions")
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
-
 ## Plot the transactions per class by timestep 
+transactions_per_timestep_pdf = os.path.join(output_dir, "transactions_per_timestep.pdf")
+
+# Create a PdfPages object
+with PdfPages(transactions_per_timestep_pdf) as pdf:
+    # Count the number of transactions per time step
+    transactions_per_timestep = features_df['timestep'].value_counts().sort_index()
+
+    # Plot the number of transactions per time step
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x=transactions_per_timestep.index, y=transactions_per_timestep.values, color='skyblue')
+    plt.title("Number of Transactions per Time Step")
+    plt.xlabel("Time Step")
+    plt.ylabel("Number of Transactions")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
+    # Save the plot to the PDF
+    pdf.savefig()  # Save the current figure to the PDF
+    plt.close()  # Close the figure to free memory
+
+print(f"Plot saved to: {transactions_per_timestep_pdf}")
+
 
 
 # Merge the features and classes datasets on transaction_id
@@ -189,18 +207,27 @@ total_transactions_per_timestep = class_counts_per_timestep.sum(axis=1)
 # Calculate the share of each class per timestep
 class_share_per_timestep = class_counts_per_timestep.div(total_transactions_per_timestep, axis=0)
 
-# Plot the share of each class over time
-plt.figure(figsize=(12, 6))
-for class_label in class_share_per_timestep.columns:
-    plt.plot(class_share_per_timestep.index, class_share_per_timestep[class_label], label=f"Class {class_label}")
+class_share_per_timestep_pdf = os.path.join(output_dir, "class_share_per_timestep.pdf")
 
-plt.title("Share of Transaction Classes per Time Step")
-plt.xlabel("Time Step")
-plt.ylabel("Share of Transactions")
-plt.legend(title="Class", labels=["Illicit (0)", "Licit (1)", "Uknown (2)"])
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+# Create a PdfPages object
+with PdfPages(class_share_per_timestep_pdf) as pdf:
+    # Plot the share of each class over time
+    plt.figure(figsize=(12, 6))
+    for class_label in class_share_per_timestep.columns:
+        plt.plot(class_share_per_timestep.index, class_share_per_timestep[class_label], label=f"Class {class_label}")
+
+    plt.title("Share of Transaction Classes per Time Step")
+    plt.xlabel("Time Step")
+    plt.ylabel("Share of Transactions")
+    plt.legend(title="Class", labels=["Illicit (0)", "Licit (1)", "Unknown (2)"])
+    plt.grid(True)
+    plt.tight_layout()
+
+    # Save the plot to the PDF
+    pdf.savefig()  # Save the current figure to the PDF
+    plt.close()  # Close the figure to free memory
+
+print(f"Plot saved to: {class_share_per_timestep_pdf}")
 
 # Calculate the ratio of illicit (class = 0) to licit (class = 1) transactions per time step
 # Ensure the 'class' column is numeric
@@ -240,18 +267,27 @@ print(class_counts_per_timestep.head())
 
 # Calculate the ratio of illicit (class = 0) to licit (class = 1) transactions per time step
 illicit_to_licit_ratio = class_counts_per_timestep[1] / class_counts_per_timestep[2]
+# File path for saving the PDF
+illicit_to_licit_ratio_pdf = os.path.join(output_dir, "illicit_to_licit_ratio.pdf")
 
-# Plot the ratio over time
-plt.figure(figsize=(12, 6))
-plt.plot(illicit_to_licit_ratio.index, illicit_to_licit_ratio.values, marker='o', color='red', label="Illicit to Licit Ratio")
-plt.title("Ratio of Illicit to Licit Transactions Over Time")
-plt.xlabel("Time Step")
-plt.ylabel("Illicit to Licit Ratio")
-plt.axhline(y=1, color='gray', linestyle='--', label="Equal Illicit and Licit")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
+# Create a PdfPages object
+with PdfPages(illicit_to_licit_ratio_pdf) as pdf:
+    # Plot the ratio over time
+    plt.figure(figsize=(12, 6))
+    plt.plot(illicit_to_licit_ratio.index, illicit_to_licit_ratio.values, marker='o', color='red', label="Illicit to Licit Ratio")
+    plt.title("Ratio of Illicit to Licit Transactions Over Time")
+    plt.xlabel("Time Step")
+    plt.ylabel("Illicit to Licit Ratio")
+    plt.axhline(y=1, color='gray', linestyle='--', label="Equal Illicit and Licit")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+
+    # Save the plot to the PDF
+    pdf.savefig()  # Save the current figure to the PDF
+    plt.close()  # Close the figure to free memory
+
+print(f"Plot saved to: {illicit_to_licit_ratio_pdf}")
 
 ### EDA on the graph structure
 
@@ -301,39 +337,51 @@ timestep_graph_stats['Average Degree'] = timestep_graph_stats['Edges'] / timeste
 # Display the results
 print(timestep_graph_stats[['Time Step', 'Average Degree']])
 
-# Plot the Node-to-Edge Ratio over time
-plt.figure(figsize=(10, 6))
-plt.plot(timestep_graph_stats['Time Step'], timestep_graph_stats['Average Degree'], marker='o', label="Average Degree")
-plt.title("Average Degree Over Time")
-plt.xlabel("Time Step")
-plt.ylabel("Average Degree")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
+# Save "Average Degree Over Time" plot
+average_degree_pdf = os.path.join(output_dir, "average_degree_over_time.pdf")
+with PdfPages(average_degree_pdf) as pdf:
+    plt.figure(figsize=(10, 6))
+    plt.plot(timestep_graph_stats['Time Step'], timestep_graph_stats['Average Degree'], marker='o', label="Average Degree")
+    plt.title("Average Degree Over Time")
+    plt.xlabel("Time Step")
+    plt.ylabel("Average Degree")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
 
+    # Save the plot to the PDF
+    pdf.savefig()
+    plt.close()
 
-# Plot the Average Degree and Illicit-to-Licit Ratio over time
-plt.figure(figsize=(12, 6))
+print(f"Plot saved to: {average_degree_pdf}")
 
-# Plot Average Degree
-plt.plot(timestep_graph_stats['Time Step'], timestep_graph_stats['Average Degree'], marker='o', label="Average Degree", color='blue')
+# Save "Average Degree and Illicit-to-Licit Ratio Over Time" plot
+average_degree_illicit_ratio_pdf = os.path.join(output_dir, "average_degree_and_illicit_to_licit_ratio.pdf")
+with PdfPages(average_degree_illicit_ratio_pdf) as pdf:
+    plt.figure(figsize=(12, 6))
 
-# Plot Illicit-to-Licit Ratio on a secondary y-axis
-ax1 = plt.gca()  # Get the current axis
-ax2 = ax1.twinx()  # Create a twin axis sharing the same x-axis
-ax2.plot(illicit_to_licit_ratio.index, illicit_to_licit_ratio.values, marker='o', label="Illicit to Licit Ratio", color='red')
+    # Plot Average Degree
+    plt.plot(timestep_graph_stats['Time Step'], timestep_graph_stats['Average Degree'], marker='o', label="Average Degree", color='blue')
 
-# Add titles and labels
-plt.title("Average Degree and Illicit-to-Licit Ratio Over Time")
-ax1.set_xlabel("Time Step")
-ax1.set_ylabel("Average Degree", color='blue')
-ax2.set_ylabel("Illicit to Licit Ratio", color='red')
+    # Plot Illicit-to-Licit Ratio on a secondary y-axis
+    ax1 = plt.gca()  # Get the current axis
+    ax2 = ax1.twinx()  # Create a twin axis sharing the same x-axis
+    ax2.plot(illicit_to_licit_ratio.index, illicit_to_licit_ratio.values, marker='o', label="Illicit to Licit Ratio", color='red')
 
-# Add grid and legends
-ax1.grid(True)
-ax1.legend(loc="upper left")
-ax2.legend(loc="upper right")
+    # Add titles and labels
+    plt.title("Average Degree and Illicit-to-Licit Ratio Over Time")
+    ax1.set_xlabel("Time Step")
+    ax1.set_ylabel("Average Degree", color='blue')
+    ax2.set_ylabel("Illicit to Licit Ratio", color='red')
 
-plt.tight_layout()
-plt.show()
+    # Add grid and legends
+    ax1.grid(True)
+    ax1.legend(loc="upper left")
+    ax2.legend(loc="upper right")
+    plt.tight_layout()
+
+    # Save the plot to the PDF
+    pdf.savefig()
+    plt.close()
+
+print(f"Plot saved to: {average_degree_illicit_ratio_pdf}")
