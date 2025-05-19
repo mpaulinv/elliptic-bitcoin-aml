@@ -3,20 +3,24 @@
 ## The features are based on the graph structure of the transactions 
 
 #load libraries
+import os
 import pandas as pd 
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 
 
-#load data
+# Define base paths dynamically
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
+data_dir = os.path.join(base_dir, "data", "elliptic_bitcoin_dataset")
+output_dir = os.path.join(base_dir, "outputs")
+
+# Ensure the output directory exists
+os.makedirs(output_dir, exist_ok=True)
+
 # File paths
-base_path = r'C:\Users\mario\elliptic-bitcoin-aml\data\elliptic_bitcoin_dataset'
-classes_file = f'{base_path}/elliptic_txs_classes.csv'
-features_file = f'{base_path}/elliptic_txs_features.csv'
-edgelist_file = f'{base_path}/elliptic_txs_edgelist.csv'
+classes_file = os.path.join(data_dir, "elliptic_txs_classes.csv")
+features_file = os.path.join(data_dir, "elliptic_txs_features.csv")
+edgelist_file = os.path.join(data_dir, "elliptic_txs_edgelist.csv")
 
 # Load the data
 classes_df = pd.read_csv(classes_file)
@@ -66,10 +70,11 @@ timestep_features_df = pd.DataFrame(timestep_features)
 # Display the features
 print(timestep_features_df.head())
 
-# Save the features to a CSV file (optional)
-output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\timestep_graph_features.csv'
-timestep_features_df.to_csv(output_path, index=False)
-print(f"Timestep graph features saved to: {output_path}")
+
+# Save the features to a CSV file
+timestep_features_output_path = os.path.join(output_dir, "timestep_graph_features.csv")
+timestep_features_df.to_csv(timestep_features_output_path, index=False)
+print(f"Timestep graph features saved to: {timestep_features_output_path}")
 
 ## now we can also create some features based on the graph structure around the transactions 
 
@@ -116,10 +121,11 @@ transaction_features_df = pd.DataFrame(transaction_features)
 # Display the features
 print(transaction_features_df.head())
 
-# Save the transaction-level features to a CSV file (optional)
-transaction_features_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\transaction_graph_features_per_timestep.csv'
+#Save the transaction-level features to a CSV file
+transaction_features_output_path = os.path.join(output_dir, "transaction_graph_features_per_timestep.csv")
 transaction_features_df.to_csv(transaction_features_output_path, index=False)
 print(f"Transaction-level graph features saved to: {transaction_features_output_path}")
+
 
 
 # Initialize a list to store ego network features for all transactions
@@ -162,7 +168,6 @@ ego_features_df = pd.DataFrame(ego_features)
 print(ego_features_df.head())
 
 # Save the ego network features to a CSV file
-ego_features_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\ego_network_features_per_timestep.csv'
+ego_features_output_path = os.path.join(output_dir, "ego_network_features_per_timestep.csv")
 ego_features_df.to_csv(ego_features_output_path, index=False)
 print(f"Ego network features saved to: {ego_features_output_path}")
-
