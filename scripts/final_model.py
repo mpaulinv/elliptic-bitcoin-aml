@@ -2,6 +2,7 @@
 # evaluate the performance of the model on the test data.
 
 #load libraries
+import os
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,13 +21,22 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.inspection import PartialDependenceDisplay
 
 top_100_features = ['feature_55', 'feature_53', 'feature_90', 'feature_14', 'feature_18', 'feature_132', 'feature_47', 'feature_163', 'betweenness_centrality', 'feature_5', 'feature_43', 'feature_46', 'feature_49', 'feature_2', 'feature_103', 'feature_65', 'feature_80', 'feature_41', 'feature_100', 'feature_59', 'feature_136', 'feature_48', 'feature_29', 'feature_52', 'feature_81', 'feature_67', 'feature_101', 'feature_8', 'feature_107', 'feature_1', 'feature_23', 'feature_16', 'feature_60', 'feature_139', 'feature_160', 'feature_137', 'feature_77', 'feature_58', 'feature_85', 'feature_40', 'feature_31', 'feature_142', 'feature_94', 'feature_61', 'feature_106', 'feature_89', 'feature_3', 'feature_64', 'feature_127', 'feature_17', 'feature_154', 'feature_138', 'feature_159', 'feature_11', 'feature_25', 'feature_95', 'feature_91', 'feature_9', 'feature_131', 'feature_125', 'feature_66', 'feature_130', 'feature_72', 'avg_degree', 'feature_84', 'clustering_coefficient_x', 'feature_88', 'feature_155', 'feature_28', 'feature_102', 'feature_144', 'feature_165', 'feature_143', 'feature_71', 'feature_164', 'feature_79', 'feature_151', 'feature_42', 'feature_157', 'feature_158', 'feature_121', 'feature_73', 'feature_145', 'feature_19', 'feature_24', 'pagerank', 'feature_115', 'feature_12', 'feature_97', 'feature_133', 'feature_109', 'feature_114', 'density', 'feature_104', 'feature_156', 'feature_82', 'feature_148', 'feature_96', 'feature_22', 'feature_6']
-# Define the path to the train_set_clean CSV file
-train_set_clean_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\train_set_clean.csv'
+
+# Define base paths dynamically
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
+data_dir = os.path.join(base_dir, "data", "elliptic_bitcoin_dataset")
+output_dir = os.path.join(base_dir, "outputs")
+
+# Ensure the output directory exists
+os.makedirs(output_dir, exist_ok=True)
+
+# File paths
+train_set_clean_path = os.path.join(output_dir, "train_set_clean.csv")
+test_set_path = os.path.join(output_dir, "test_set.csv")
+edgelist_file = os.path.join(data_dir, "elliptic_txs_edgelist.csv")
 
 # Load the train_set_clean dataset
 train_set_clean = pd.read_csv(train_set_clean_path)
-
-# Display the first few rows to verify the data
 print("Loaded train_set_clean dataset:")
 print(train_set_clean.head())
 
@@ -87,7 +97,7 @@ rf_model = RandomForestClassifier(n_estimators=20, max_depth=25, max_features=60
 rf_model.fit(X_rf, y_rf)
 
 # Load the test set
-test_set_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\test_set.csv'
+#test_set_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\test_set.csv'
 test_set = pd.read_csv(test_set_path)
 
 # Drop rows where the target variable ('class') is NaN
@@ -170,149 +180,71 @@ else:
 
 # Load the edgelist data
 # Load the edgelist data
-edgelist_file = r'C:\Users\mario\elliptic-bitcoin-aml\data\elliptic_bitcoin_dataset\elliptic_txs_edgelist.csv'
+#edgelist_file = r'C:\Users\mario\elliptic-bitcoin-aml\data\elliptic_bitcoin_dataset\elliptic_txs_edgelist.csv'
 edgelist_df = pd.read_csv(edgelist_file)
 
-# Filter the test set for the specific timestamp
-timestamp = 37
-test_subset = test_set[test_set['timestep'] == timestamp]
 
-# Ensure the necessary columns exist
-if 'transaction_id' not in test_subset.columns:
-    print("Error: 'transaction_id' column is missing in the test set.")
-else:
-    # Filter the edgelist for the transactions in the current timestamp
-    transaction_ids = set(test_subset['transaction_id'])
-    filtered_edgelist = edgelist_df[
-        edgelist_df['txId1'].isin(transaction_ids) | edgelist_df['txId2'].isin(transaction_ids)
-    ]
+# File path for saving the PDF
+graph_visualization_pdf = os.path.join(output_dir, "graph_model_visualization.pdf")
+# Create a PdfPages object to save all plots
+with PdfPages(graph_visualization_pdf) as pdf:
+    for timestamp in sorted(test_set['timestep'].unique()):
+        test_subset = test_set[test_set['timestep'] == timestamp]
+        if 'transaction_id' not in test_subset.columns:
+            print(f"Error: 'transaction_id' column is missing in the test set for timestamp {timestamp}.")
+            continue
 
-    # Create the graph
-    G = nx.from_pandas_edgelist(filtered_edgelist, source='txId1', target='txId2', create_using=nx.DiGraph())
+        transaction_ids = set(test_subset['transaction_id'])
+        filtered_edgelist = edgelist_df[
+            edgelist_df['txId1'].isin(transaction_ids) | edgelist_df['txId2'].isin(transaction_ids)
+        ]
 
-    # Get all nodes in the graph
-    graph_nodes = list(G.nodes)
+        # Create the graph
+        G = nx.from_pandas_edgelist(filtered_edgelist, source='txId1', target='txId2', create_using=nx.DiGraph())
+        graph_nodes = list(G.nodes)
+        graph_nodes_df = pd.DataFrame({'transaction_id': graph_nodes})
+        graph_nodes_df = graph_nodes_df.merge(test_subset, on='transaction_id', how='left')
 
-    # Prepare a DataFrame for all nodes in the graph
-    graph_nodes_df = pd.DataFrame({'transaction_id': graph_nodes})
+        # Predict for all nodes in the graph
+        X_graph = graph_nodes_df[top_100_features].fillna(0)  # Fill missing features with 0
+        y_graph_pred = rf_model.predict(X_graph)
 
-    # Merge with the test subset to include features and labels for known nodes
-    graph_nodes_df = graph_nodes_df.merge(test_subset, on='transaction_id', how='left')
+        # Assign colors based on predictions
+        node_colors_pred = ['red' if pred == 1 else 'blue' for pred in y_graph_pred]
 
-    # Predict for all nodes in the graph
-    X_graph = graph_nodes_df[top_100_features].fillna(0)  # Fill missing features with 0
-    y_graph_pred = rf_model.predict(X_graph)
+        # Assign colors based on actual labels (gray for unknown labels)
+        node_colors_actual = [
+            'red' if actual == 1 else 'blue' if actual == 0 else 'gray'
+            for actual in graph_nodes_df['class']
+        ]
 
-    # Assign colors based on predictions
-    node_colors_pred = [
-        'red' if pred == 1 else 'blue' for pred in y_graph_pred
-    ]
+        # Plot the graphs side by side
+        fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 
-    # Assign colors based on actual labels (gray for unknown labels)
-    node_colors_actual = [
-        'red' if actual == 1 else 'blue' if actual == 0 else 'gray'
-        for actual in graph_nodes_df['class']
-    ]
+        # Graph with predicted illicit transactions
+        nx.draw(
+            G,
+            ax=axes[0],
+            with_labels=False,
+            node_color=node_colors_pred,
+            node_size=50,
+            edge_color='gray'
+        )
+        axes[0].set_title(f"Predicted Illicit Transactions (Timestamp {timestamp})")
 
-    # Plot the graphs side by side
-    fig, axes = plt.subplots(1, 2, figsize=(15, 7))
+        # Graph with actual illicit transactions
+        nx.draw(
+            G,
+            ax=axes[1],
+            with_labels=False,
+            node_color=node_colors_actual,
+            node_size=50,
+            edge_color='gray'
+        )
+        axes[1].set_title(f"Actual Illicit Transactions (Timestamp {timestamp})")
 
-    # Graph with predicted illicit transactions
-    nx.draw(
-        G,
-        ax=axes[0],
-        with_labels=False,
-        node_color=node_colors_pred,
-        node_size=50,
-        edge_color='gray'
-    )
-    axes[0].set_title("Predicted Illicit Transactions")
+        # Save the current figure to the PDF
+        pdf.savefig(fig)
+        plt.close(fig)  # Close the figure to free memory
 
-    # Graph with actual illicit transactions
-    nx.draw(
-        G,
-        ax=axes[1],
-        with_labels=False,
-        node_color=node_colors_actual,
-        node_size=50,
-        edge_color='gray'
-    )
-    axes[1].set_title("Actual Illicit Transactions")
-
-    # Show the plots
-    plt.tight_layout()
-    plt.show()
-
-
-
-
-
-# Filter the test set for the specific timestamp
-timestamp = 49
-test_subset = test_set[test_set['timestep'] == timestamp]
-
-# Ensure the necessary columns exist
-if 'transaction_id' not in test_subset.columns:
-    print("Error: 'transaction_id' column is missing in the test set.")
-else:
-    # Filter the edgelist for the transactions in the current timestamp
-    transaction_ids = set(test_subset['transaction_id'])
-    filtered_edgelist = edgelist_df[
-        edgelist_df['txId1'].isin(transaction_ids) | edgelist_df['txId2'].isin(transaction_ids)
-    ]
-
-    # Create the graph
-    G = nx.from_pandas_edgelist(filtered_edgelist, source='txId1', target='txId2', create_using=nx.DiGraph())
-
-    # Get all nodes in the graph
-    graph_nodes = list(G.nodes)
-
-    # Prepare a DataFrame for all nodes in the graph
-    graph_nodes_df = pd.DataFrame({'transaction_id': graph_nodes})
-
-    # Merge with the test subset to include features and labels for known nodes
-    graph_nodes_df = graph_nodes_df.merge(test_subset, on='transaction_id', how='left')
-
-    # Predict for all nodes in the graph
-    X_graph = graph_nodes_df[top_100_features].fillna(0)  # Fill missing features with 0
-    y_graph_pred = rf_model.predict(X_graph)
-
-    # Assign colors based on predictions
-    node_colors_pred = [
-        'red' if pred == 1 else 'blue' for pred in y_graph_pred
-    ]
-
-    # Assign colors based on actual labels (gray for unknown labels)
-    node_colors_actual = [
-        'red' if actual == 1 else 'blue' if actual == 0 else 'gray'
-        for actual in graph_nodes_df['class']
-    ]
-
-    # Plot the graphs side by side
-    fig, axes = plt.subplots(1, 2, figsize=(15, 7))
-
-    # Graph with predicted illicit transactions
-    nx.draw(
-        G,
-        ax=axes[0],
-        with_labels=False,
-        node_color=node_colors_pred,
-        node_size=50,
-        edge_color='gray'
-    )
-    axes[0].set_title("Predicted Illicit Transactions")
-
-    # Graph with actual illicit transactions
-    nx.draw(
-        G,
-        ax=axes[1],
-        with_labels=False,
-        node_color=node_colors_actual,
-        node_size=50,
-        edge_color='gray'
-    )
-    axes[1].set_title("Actual Illicit Transactions")
-
-    # Show the plots
-    plt.tight_layout()
-    plt.show()
+print(f"Graph visualizations saved to: {graph_visualization_pdf}")
