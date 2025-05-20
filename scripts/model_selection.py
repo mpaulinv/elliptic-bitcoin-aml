@@ -9,14 +9,13 @@
 #before I adjust the models I will load the data 
 
 #load libraries
+import os
 import pandas as pd 
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 from imblearn.over_sampling import RandomOverSampler
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.model_selection import cross_val_predict
@@ -25,8 +24,15 @@ from sklearn.model_selection import cross_val_score, cross_val_predict
 from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, confusion_matrix
 from sklearn.model_selection import GridSearchCV
 
-# Define the path to the train_set_clean CSV file
-train_set_clean_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\train_set_clean.csv'
+# Define base paths dynamically
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
+output_dir = os.path.join(base_dir, "outputs")
+
+# Ensure the output directory exists
+os.makedirs(output_dir, exist_ok=True)
+
+# File path for the train_set_clean CSV file
+train_set_clean_path = os.path.join(output_dir, "train_set_clean.csv")
 
 # Load the train_set_clean dataset
 train_set_clean = pd.read_csv(train_set_clean_path)
