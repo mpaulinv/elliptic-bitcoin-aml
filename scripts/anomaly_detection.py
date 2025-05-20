@@ -1,6 +1,6 @@
 ### This script will conduct the analysis of the association between the features created in the feature engineering script and available in the dataset, and the target variable.
 # # #load libraries
-
+import os
 import pandas as pd 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,21 +9,27 @@ from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 
 #load data
-# File paths
-base_path = r'C:\Users\mario\elliptic-bitcoin-aml\data\elliptic_bitcoin_dataset'
-classes_file = f'{base_path}/elliptic_txs_classes.csv'
-features_file = f'{base_path}/elliptic_txs_features.csv'
-edgelist_file = f'{base_path}/elliptic_txs_edgelist.csv'
 
-base_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs'
-timestep_graph_features_path = f'{base_path}/timestep_graph_features.csv'
-transaction_graph_features_path = f'{base_path}/transaction_graph_features_per_timestep.csv'
-ego_network_features_path = f'{base_path}/ego_network_features_per_timestep.csv'
+# Define base paths dynamically
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
+data_dir = os.path.join(base_dir, "data", "elliptic_bitcoin_dataset")
+output_dir = os.path.join(base_dir, "outputs")
+
+# Ensure the output directory exists
+os.makedirs(output_dir, exist_ok=True)
+
+
+# File paths
+classes_file = os.path.join(data_dir, "elliptic_txs_classes.csv")
+features_file = os.path.join(data_dir, "elliptic_txs_features.csv")
+edgelist_file = os.path.join(data_dir, "elliptic_txs_edgelist.csv")
+timestep_graph_features_path = os.path.join(output_dir, "timestep_graph_features.csv")
+transaction_graph_features_path = os.path.join(output_dir, "transaction_graph_features_per_timestep.csv")
+ego_network_features_path = os.path.join(output_dir, "ego_network_features_per_timestep.csv")
 
 # Load the data
 classes_df = pd.read_csv(classes_file)
 features_df = pd.read_csv(features_file, header=None)  # Assuming no header in features
-edgelist_df = pd.read_csv(edgelist_file)
 timestep_graph_features_df = pd.read_csv(timestep_graph_features_path)
 transaction_graph_features_df = pd.read_csv(transaction_graph_features_path)
 ego_network_features_df = pd.read_csv(ego_network_features_path)
@@ -57,10 +63,10 @@ combined_features_df = pd.merge(combined_features_df, transaction_graph_features
 print("Combined features:")
 print(timestep_graph_features_df.head(), "\n")
 
-# Save the combined features to a CSV file (optional)
-combined_features_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\combined_features.csv'
-combined_features_df.to_csv(combined_features_output_path , index=False)
-print(f"combined graph features saved to: {combined_features_output_path}")
+# Save the combined features to a CSV file
+combined_features_output_path = os.path.join(output_dir, "combined_features.csv")
+combined_features_df.to_csv(combined_features_output_path, index=False)
+print(f"Combined graph features saved to: {combined_features_output_path}")
 
 ### Now we merge to the combined features the classes_df, which contains the target variable.
 # We will use the transaction_id as the key to merge.
@@ -87,8 +93,8 @@ target_variable = 'class'
 features = [col for col in train_set_clean.columns if col not in ['transaction_id', 'timestep', target_variable]]
 
 # Create scatterplots for each feature against the target variable
-output_pdf_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\scatterplots_with_regression.pdf'
-with PdfPages(output_pdf_path) as pdf:
+scatterplots_with_regression_pdf = os.path.join(output_dir, "scatterplots_with_regression.pdf")
+with PdfPages(scatterplots_with_regression_pdf) as pdf:
     for feature in features:
         plt.figure(figsize=(8, 6))
         sns.regplot(
@@ -106,40 +112,40 @@ with PdfPages(output_pdf_path) as pdf:
         pdf.savefig()  # Save the current figure to the PDF
         plt.close()  # Close the figure to avoid overlapping plots
 
-print(f"Scatterplots with regression lines saved to: {output_pdf_path}")
+print(f"Scatterplots with regression lines saved to: {scatterplots_with_regression_pdf}")
 
 
 # Exclude columns starting with 'feature_' from the features list
-features = [
+filtered_features = [
     col for col in train_set_clean.columns
     if col not in ['transaction_id', 'timestep', target_variable] and not col.startswith('feature_')
 ]
 
 # Verify the filtered features
 print("Filtered features (excluding 'feature_'):")
-print(features)
+print(filtered_features)
 
 # Create scatterplots for each feature against the target variable
-output_pdf_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\scatterplots_without_feature_columns.pdf'
-with PdfPages(output_pdf_path) as pdf:
-    for feature in features:
+scatterplots_without_features_pdf = os.path.join(output_dir, "scatterplots_without_feature_columns.pdf")
+with PdfPages(scatterplots_without_features_pdf) as pdf:
+    for feature in filtered_features:
         plt.figure(figsize=(8, 6))
         sns.regplot(
             data=train_set_clean,
             x=feature,
             y=target_variable,
-            scatter_kws={'alpha': 0.5},  # Transparency for scatter points
-            line_kws={'color': 'red'},  # Regression line color
-            ci=None  # Disable confidence interval for clarity
+            scatter_kws={'alpha': 0.5},
+            line_kws={'color': 'red'},
+            ci=None
         )
         plt.title(f'Scatterplot of {target_variable} vs {feature}')
         plt.xlabel(feature)
         plt.ylabel(target_variable)
         plt.grid(True)
-        pdf.savefig()  # Save the current figure to the PDF
-        plt.close()  # Close the figure to avoid overlapping plots
+        pdf.savefig()
+        plt.close()
 
-print(f"Scatterplots without 'feature_' columns saved to: {output_pdf_path}")
+print(f"Scatterplots without 'feature_' columns saved to: {scatterplots_without_features_pdf}")
 
 # Filter the columns for the heatmap
 heatmap_columns = [
@@ -164,19 +170,20 @@ plt.title("Heatmap Correlogram of Selected Features")
 plt.tight_layout()
 
 # Save the heatmap to a file
-heatmap_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\heatmap_correlogram_graph_features.png'
+heatmap_output_path = os.path.join(output_dir, "heatmap_correlogram_graph_features.png")
 plt.savefig(heatmap_output_path)
 plt.show()
 
 print(f"Heatmap correlogram saved to: {heatmap_output_path}")
 
-# Define the output path for the train_set_clean CSV file
-train_set_clean_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\train_set_clean.csv'
-test_set_output_path = r'C:\Users\mario\elliptic-bitcoin-aml\outputs\test_set.csv'
-
-# Save train_set_clean to a CSV file
+# Save train and test sets to CSV files
+train_set_clean_output_path = os.path.join(output_dir, "train_set_clean.csv")
+test_set_output_path = os.path.join(output_dir, "test_set.csv")
 train_set_clean.to_csv(train_set_clean_output_path, index=False)
 test_set.to_csv(test_set_output_path, index=False)
+
+print(f"Train set saved to: {train_set_clean_output_path}")
+print(f"Test set saved to: {test_set_output_path}")
 
 
 ### Comments: Some of the premade features are highly correlated with each other. These could be removed from the model. 
