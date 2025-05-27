@@ -8,6 +8,7 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 
+
 #load data
 
 # Define base paths dynamically
@@ -30,6 +31,7 @@ ego_network_features_path = os.path.join(output_dir, "ego_network_features_per_t
 # Load the data
 classes_df = pd.read_csv(classes_file)
 features_df = pd.read_csv(features_file, header=None)  # Assuming no header in features
+edgelist_df = pd.read_csv(edgelist_file)
 timestep_graph_features_df = pd.read_csv(timestep_graph_features_path)
 transaction_graph_features_df = pd.read_csv(transaction_graph_features_path)
 ego_network_features_df = pd.read_csv(ego_network_features_path)

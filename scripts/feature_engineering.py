@@ -7,7 +7,8 @@ import os
 import pandas as pd 
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
-
+from networkx.algorithms.community import greedy_modularity_communities
+import numpy as np
 
 # Define base paths dynamically
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
@@ -89,12 +90,19 @@ for timestep in sorted(features_df[1].unique()):  # Assuming column 1 in feature
     print(f"Processing timestep {timestep}...")
     
     # Get the nodes for the current timestep
-    nodes_in_timestep = features_df[features_df[1] == timestep][0]  # Assuming column 0 is 'transaction_id'
+    nodes_in_timestep = features_df[features_df[1] == timestep][0] # Assuming column 0 is 'transaction_id'
     
     # Subgraph for the current timestep
     subgraph = G.subgraph(nodes_in_timestep)
     
     # Calculate graph features for the subgraph
+    closeness_centrality = nx.closeness_centrality(subgraph)
+    eigenvector_centrality = nx.eigenvector_centrality(subgraph, max_iter=1000, tol=1e-2)
+    harmonic_centrality = nx.harmonic_centrality(subgraph)
+    communities = list(greedy_modularity_communities(subgraph))
+    community_map = {node: idx for idx, community in enumerate(communities) for node in community}
+    shortest_path_lengths = dict(nx.shortest_path_length(subgraph))
+
     degree_centrality = dict(subgraph.degree())  # Total degree (in + out)
     in_degree_centrality = dict(subgraph.in_degree())  # In-degree
     out_degree_centrality = dict(subgraph.out_degree())  # Out-degree
@@ -107,6 +115,11 @@ for timestep in sorted(features_df[1].unique()):  # Assuming column 1 in feature
         transaction_features.append({
             'transaction_id': node,
             'timestep': timestep,
+            'closeness_centrality': closeness_centrality.get(node, 0),
+            'eigenvector_centrality': eigenvector_centrality.get(node, 0),
+            'harmonic_centrality': harmonic_centrality.get(node, 0),
+            'community': community_map.get(node, -1),
+            'avg_shortest_path_length': np.mean(list(shortest_path_lengths[node].values())) if node in shortest_path_lengths else np.nan,
             'degree_centrality': degree_centrality.get(node, 0),
             'in_degree_centrality': in_degree_centrality.get(node, 0),
             'out_degree_centrality': out_degree_centrality.get(node, 0),

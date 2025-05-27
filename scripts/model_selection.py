@@ -5,6 +5,7 @@
 # ### 1. Random Forest (out of the box)
 # ### 2. Random Forest (with hyperparameter tuning)
 # ### 3. Random Forest with feature selection (using the top 100 features based on importance)
+# ### 4. GAT model (Graph Attention Network)
 
 #before I adjust the models I will load the data 
 
@@ -16,13 +17,15 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import networkx as nx
 from imblearn.over_sampling import RandomOverSampler
-from sklearn.model_selection import cross_val_score
-from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, confusion_matrix
-from sklearn.model_selection import cross_val_predict
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, cross_val_predict
-from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, confusion_matrix, accuracy_score
 from sklearn.model_selection import GridSearchCV
+import torch
+from torch_geometric.data import Data
+from torch_geometric.nn import GATConv
+from sklearn.model_selection import KFold
+import joblib
 
 # Define base paths dynamically
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Project root directory
@@ -30,6 +33,7 @@ output_dir = os.path.join(base_dir, "outputs")
 
 # Ensure the output directory exists
 os.makedirs(output_dir, exist_ok=True)
+
 
 # File path for the train_set_clean CSV file
 train_set_clean_path = os.path.join(output_dir, "train_set_clean.csv")
@@ -89,28 +93,91 @@ print(class_counts)
 print(f"Class 0 (legitimate): {class_counts.get(0, 0)}")
 print(f"Class 1 (ilicit): {class_counts.get(1, 0)}")
 
-### Model: Random Forest.
+### Model 1: Random Forest.
 # ### I will use the Random Forest model from the sklearn library.
+### The benchmark model will use Random Forest with the original features.
+original_features = [col for col in train_set_clean.columns if col.startswith('feature_')]
+X_original = train_set_clean[original_features]  # Original features
+y_original = train_set_clean['class']  # Target variable
+
+# Initialize the Random Forest model with default parameters
+rf_benchmark = RandomForestClassifier(random_state=1001)
+
+# Define the hyperparameter grid
+# I tried a grid search with the following parameters:
+# 'n_estimators': [40, 50, 60],  # Number of trees
+# 'max_depth': [20,25,30],     # Maximum depth of each tree
+# 'max_features': [25,40,50]    # Number of features to consider at each split
+# Best combination was 20 max depth, 25 max features and 50 n_estimators.
+# with a f1 score of 0.77
+
+param_grid = {
+    'n_estimators': [50],  # Number of trees
+    'max_depth': [25],     # Maximum depth of each tree
+    'max_features': [25]    # Number of features to consider at each split
+}
+
+# Initialize the Random Forest model
+rf_model = RandomForestClassifier(random_state=1001)
+
+# Initialize GridSearchCV
+grid_search = GridSearchCV(
+    estimator=rf_model,
+    param_grid=param_grid,
+    scoring='f1',  # Optimize F1-score for the illicit class
+    cv=5,          # 5-fold cross-validation
+    verbose=1,     # Display progress
+    n_jobs=-1      # Use all available CPU cores
+)
+
+# Perform the grid search
+grid_search.fit(X_original, y_original)
+
+# Get the best parameters and best score
+best_params = grid_search.best_params_
+best_score = grid_search.best_score_
+
+print("Best Hyperparameters:")
+print(best_params)
+print(f"Best F1-Score (Cross-Validation): {best_score:.4f}")
+
+# Perform 5-fold cross-validation
+cv_f1_scores = cross_val_score(rf_benchmark, X_original, y_original, cv=5, scoring='f1')
+# Perform 5-fold cross-validation for accuracy
+cv_accuracy_scores = cross_val_score(rf_benchmark, X_original, y_original, cv=5, scoring='accuracy')
+
+y_cv_pred = cross_val_predict(rf_benchmark, X_original, y_original, cv=5)
+illicit_f1 = f1_score(y_original, y_cv_pred, labels=[1], average=None)[0]
+
+print("\nRandom Forest Benchmark Model:")
+print(f"F1-Scores (Overall): {cv_f1_scores}")
+print(f"Mean F1-Score (Overall): {cv_f1_scores.mean():.4f}")
+print(f"Accuracy Scores: {cv_accuracy_scores}")
+print(f"Mean Accuracy: {cv_accuracy_scores.mean():.4f}")
+print(f"F1-Score for Illicit Class (Class 1): {illicit_f1:.4f}")
+
+
+### Model 2: Random Forest with network features 
 # ### In terms of variables, I will use the features plus some of the variables from the combined dataset.
 # ### I will exclude num_nodes, num_edges, in_degree_centrality and num_connected_components.
 # ### To assess performance I will do a 5-fold cross-validation.
 # Hyperparameters for Random Forest tunning 
-# n_estimators = 100, max_depth = 10, n_features=50, m random_state = 1001
+# n_estimators = 100, max_depth = 10, n_features=50, 
 ### Itried   'n_estimators': [40, 50, 60],  # Number of trees
 ##    'max_depth': [20,25,30],     # Maximum depth of each tree
 ##    'max_features': [25,40,50]    # Number of features to consider at each split
-## Best parameters in terms of f1 score were 20 max depth, 25 mas features and 60 n_estimators.
+## Best parameters in terms of f1 score of .84 were max_depth': 25, 'max_features': 25, 'n_estimators': 50.
 
 # Exclude specified features
-excluded_features = ['num_nodes', 'num_edges', 'in_degree_centrality', 'num_connected_components']
+excluded_features = ['num_edges', 'in_degree_centrality', 'num_connected_components']
 X_rf = train_set_oversampled.drop(columns=excluded_features + ['class'])  # Features
 y_rf = train_set_oversampled['class']  # Target variable
 
 # Define the hyperparameter grid
 param_grid = {
-    'n_estimators': [20],  # Number of trees
+    'n_estimators': [50],  # Number of trees
     'max_depth': [25],     # Maximum depth of each tree
-    'max_features': [60]    # Number of features to consider at each split
+    'max_features': [25]    # Number of features to consider at each split
 }
 
 # Initialize the Random Forest model
@@ -144,12 +211,19 @@ y_rf_cv_pred = cross_val_predict(grid_search.best_estimator_, X_rf, y_rf, cv=5)
 print("Classification Report for Cross-Validation Predictions:")
 print(classification_report(y_rf, y_rf_cv_pred, target_names=["Legitimate (0)", "Illicit (1)"]))
 
+
+# Calculate F1-score for the illicit class (class 1)
+illicit_f1 = f1_score(y_rf, y_rf_cv_pred, labels=[1], average=None)[0]
+print(f"F1-Score for Illicit Class (Class 1): {illicit_f1:.4f}")
+
+
+
 # Display the confusion matrix based on cross-validation predictions
 conf_matrix_rf_cv = confusion_matrix(y_rf, y_rf_cv_pred)
 print("\nConfusion Matrix (Cross-Validation):")
 print(conf_matrix_rf_cv)
 
-
+### Third model: keep only the top 100 features based on importance 
 #### Now we train on the whole train dataset and select the top features 
 
 # Exclude specified features
@@ -158,7 +232,7 @@ X_rf = train_set_oversampled.drop(columns=excluded_features + ['class'])  # Feat
 y_rf = train_set_oversampled['class']  # Target variable
 
 # Train a Random Forest model
-rf_model = RandomForestClassifier(n_estimators=20, max_depth=25, max_features=60, random_state=1001)
+rf_model = RandomForestClassifier(n_estimators=50, max_depth=25, max_features=25, random_state=1001)
 rf_model.fit(X_rf, y_rf)
 
 # Extract feature importance scores
@@ -183,13 +257,75 @@ print(f"Top {top_k} Features: {selected_features}")
 # Create a new dataset with only the selected features
 X_selected = X_rf[selected_features]
 
-# Train a new Random Forest model using only the selected features
-rf_model_selected = RandomForestClassifier(n_estimators=100, max_depth=20, random_state=1001)
-rf_model_selected.fit(X_selected, y_rf)
+# Define the hyperparameter grid
+### The grid search was done with the following parameters: 
+### 'n_estimators': [60, 80, 100, 120],  # Number of trees
+### 'max_depth': [15, 20, 25],       # Maximum depth of each tree
+### 'max_features': [10, 15, 20]     # Number of features to consider at each split
+### The best combination was max_depth': 20, 'max_features': 10, 'n_estimators': 100 with a f1 score of .8560
+### and mean accuracy of .8448
 
-# Evaluate the new model (e.g., using cross-validation)
-from sklearn.model_selection import cross_val_score
-cv_scores = cross_val_score(rf_model_selected, X_selected, y_rf, cv=5, scoring='f1')
-print("5-Fold Cross-Validation Results with Selected Features:")
-print(f"Accuracy Scores: {cv_scores}")
-print(f"Mean F1-Score: {cv_scores.mean():.4f}")
+param_grid = {
+    'n_estimators': [100],  # Number of trees
+    'max_depth': [25],       # Maximum depth of each tree
+    'max_features': [10]     # Number of features to consider at each split
+}
+
+
+# Initialize the Random Forest model
+rf_model = RandomForestClassifier(random_state=1001)
+
+# Initialize GridSearchCV
+grid_search = GridSearchCV(
+    estimator=rf_model,
+    param_grid=param_grid,
+    scoring='f1',  # Optimize F1-score for the illicit class
+    cv=5,          # 5-fold cross-validation
+    verbose=1,     # Display detailed progress
+    n_jobs=-1      # Use all available CPU cores
+)
+
+# Perform the grid search
+grid_search.fit(X_selected, y_rf)
+
+# Get the best parameters and best score
+best_params = grid_search.best_params_
+best_score = grid_search.best_score_
+
+print("\nBest Hyperparameters:")
+print(best_params)
+print(f"Best F1-Score (Cross-Validation): {best_score:.4f}")
+
+# Train the best model on the entire dataset
+best_rf_model = grid_search.best_estimator_
+best_rf_model.fit(X_selected, y_rf)
+
+# Evaluate the best model using cross-validation
+cv_f1_scores = cross_val_score(best_rf_model, X_selected, y_rf, cv=5, scoring='f1')
+cv_accuracy_scores = cross_val_score(best_rf_model, X_selected, y_rf, cv=5, scoring='accuracy')
+
+
+# Calculate F1-score for the illicit class (class 1)
+y_final_cv_pred = cross_val_predict(best_rf_model, X_selected, y_rf, cv=5)
+illicit_f1 = f1_score(y_rf, y_final_cv_pred, labels=[1], average=None)[0]
+
+# Print the results
+print("\n5-Fold Cross-Validation Results with Best Hyperparameters:")
+print(f"F1-Scores (Overall): {cv_f1_scores}")
+print(f"Mean F1-Score (Overall): {cv_f1_scores.mean():.4f}")
+print(f"Accuracy Scores: {cv_accuracy_scores}")
+print(f"Mean Accuracy: {cv_accuracy_scores.mean():.4f}")
+print(f"F1-Score for Illicit Class (Class 1): {illicit_f1:.4f}")
+
+
+
+
+# Define the path to save the model
+rf_model_save_path = os.path.join(output_dir, "random_forest_model.pkl")
+
+# Save the trained Random Forest model
+joblib.dump(best_rf_model, rf_model_save_path)
+print(f"Random Forest model saved to {rf_model_save_path}")
+
+### The GAT is estimated in the next script gat_model.py. 
+
