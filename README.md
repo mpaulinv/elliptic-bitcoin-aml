@@ -50,17 +50,4 @@ Then please execute the files in the following order:
 
 
 ## Project Structure 
-elliptic-bitcoin-aml/
-├── data/
-│   └── elliptic_bitcoin_dataset/  # Dataset files
-├── outputs/                       # Generated outputs (e.g., models, plots)
-├── scripts/                       # Python scripts for analysis and modeling
-│   ├── anomaly_detection.py
-│   ├── data_drift.py
-│   ├── exploratory_data_analysis.py
-│   ├── feature_engineering.py
-│   ├── final_model_rf.py
-│   ├── final_model_gat.py
-│   ├── model_selection.py
-├── README.md                      # Project documentation
-├── requirements.txt               # Python dependencies
+elliptic-bitcoin-aml/ ├── data/ │ └── elliptic_bitcoin_dataset/ # Dataset files ├── outputs/ # Generated outputs (e.g., models, plots) ├── scripts/ # Python scripts for analysis and modeling │ ├── anomaly_detection.py │ ├── data_drift.py │ ├── exploratory_data_analysis.py │ ├── feature_engineering.py │ ├── final_model_rf.py │ ├── final_model_gat.py │ ├── model_selection.py ├── README.md # Project documentation ├── requirements.txt # Python dependencies
