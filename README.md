@@ -34,7 +34,8 @@ The dataset includes transaction-level features, graph structures, and class lab
    ```bash
    git clone https://github.com/your-username/elliptic-bitcoin-aml.git
    cd elliptic-bitcoin-aml
-
+   
+## Usage 
 Then please execute the files in the following order:
 1.- requirements.txt 
 2.- download_data.py - simple script to download the Elliptic dataset from Kaggle. Make sure to have Kaggle API installed and configured
@@ -48,7 +49,7 @@ Then please execute the files in the following order:
 10. data_drift.py Exploration of data drift around the regulatory change at timestep 43. 
 
 
-#Project Structure 
+## Project Structure 
 elliptic-bitcoin-aml/
 ├── data/
 │   └── elliptic_bitcoin_dataset/  # Dataset files
