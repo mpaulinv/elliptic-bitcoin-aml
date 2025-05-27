@@ -11,7 +11,6 @@ This repository contains scripts and models for analyzing and predicting illicit
 - [Usage](#usage)
 - [Project Structure](#project-structure)
 - [Results](#results)
-- [License](#license)
 
 ## Overview
 The Elliptic Bitcoin AML project focuses on detecting illicit transactions using a combination of:
@@ -51,3 +50,39 @@ Then please execute the files in the following order:
 
 ## Project Structure 
 elliptic-bitcoin-aml/ ├── data/ │ └── elliptic_bitcoin_dataset/ # Dataset files ├── outputs/ # Generated outputs (e.g., models, plots) ├── scripts/ # Python scripts for analysis and modeling │ ├── anomaly_detection.py │ ├── data_drift.py │ ├── exploratory_data_analysis.py │ ├── feature_engineering.py │ ├── final_model_rf.py │ ├── final_model_gat.py │ ├── model_selection.py ├── README.md # Project documentation ├── requirements.txt # Python dependencies
+
+
+
+## Results
+Random Forest Model:
+
+Achieved the best performance on the test set, for detecting illicit transactions.
+
+Graph Attention Network (GAT):
+
+While GAT showed promising results during training, its performance on the test set was lower than the Random Forest model when combined with graph-based features.
+This highlights the importance of feature engineering and the effectiveness of traditional machine learning models in this specific dataset.
+3. Visualization
+
+Scatterplots:
+
+Generated scatterplots with regression lines for all features against the target variable, highlighting key relationships.
+Separate scatterplots were created for features excluding those starting with feature_ for clarity.
+Heatmap:
+A correlogram heatmap was created to visualize the correlation between selected features, aiding in feature selection and redundancy analysis.
+Graph Visualizations:
+
+Side-by-side visualizations of predicted and actual illicit transactions were generated for each timestep, providing insights into model performance over time.
+4. Data Splitting
+The dataset was split into training and testing sets based on the timestep column:
+Training Set: First 34 timesteps.
+Testing Set: Remaining timesteps.
+This approach ensures that the model is trained on past data and tested on future data, mimicking real-world scenarios.
+5. Challenges
+Imbalanced Dataset: The significant imbalance between legitimate and illicit transactions posed a challenge for model training and evaluation.
+Feature Redundancy: High correlation among some features required careful feature selection to avoid overfitting.
+6. Key Insights
+Illicit transactions are often associated with specific graph patterns, such as high density and low clustering.
+Graph-based features play a crucial role in distinguishing between legitimate and illicit transactions.
+The Random Forest model, when combined with engineered graph features, outperformed more complex models like GAT on the test set, emphasizing the value of feature engineering and simpler models for this dataset.
+
